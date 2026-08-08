@@ -35,6 +35,8 @@ class PetWindow(QWidget):
         self._interaction: Optional[InteractionController] = None
         self._state = "IDLE"  # 由 app.py 通过 set_state 跟随 FSM
         self._scale = 1.0     # 显示缩放（见 set_scale）
+        self._base_size: Optional[QSize] = None  # 窗口基准尺寸(首次素材),恒定
+        self._drag_dim = True                    # 无专门素材时 DRAG 变暗兜底
         self._build_context_menu()
 
         self.setWindowFlags(
@@ -58,13 +60,18 @@ class PetWindow(QWidget):
     def current_state(self) -> str:
         return self._state
 
+    def set_drag_dim(self, on: bool) -> None:
+        """DRAG 状态是否叠加变暗。有专门 drag 素材时应关闭(on=False)。"""
+        self._drag_dim = on
+        self.update()
+
     def paintEvent(self, event) -> None:  # noqa: N802 (Qt 命名)
         painter = QPainter(self)
         pix = self._player.current_pixmap()
         if not pix.isNull():
             # 按窗口尺寸绘制；窗口尺寸 == 素材尺寸时 1:1，素材换大小时等比缩放
             painter.drawPixmap(0, 0, self.width(), self.height(), pix)
-        if self._state == "DRAG":
+        if self._state == "DRAG" and self._drag_dim:
             # 被拎起视觉指示（占位；换正式 drag 素材后此叠加自然消失）
             painter.fillRect(self.rect(), QColor(0, 0, 0, DRAG_DARKEN))
 
@@ -112,16 +119,24 @@ class PetWindow(QWidget):
         super().mouseReleaseEvent(event)
 
     def set_scale(self, scale: float) -> None:
-        """按素材尺寸 × 缩放 重新定窗口尺寸。paintEvent 已把素材等比缩放到窗口。"""
-        self._scale = scale
-        self._resize_to_asset()
+        """窗口尺寸 = 基准素材尺寸 × 缩放;paintEvent 把素材等比缩到窗口。
 
-    def _resize_to_asset(self) -> None:
-        base = self._player.current_pixmap().size()
+        基准尺寸取首次加载的素材(启动即 idle 512×512),之后恒定,
+        因此切换到 1024 的 drag.png 也不会让窗口放大、切换不跳。
+        """
+        self._scale = scale
+        self._resize_to_base()
+
+    def _resize_to_base(self) -> None:
+        if self._base_size is None:
+            self._base_size = self._player.current_pixmap().size()
         self.setFixedSize(
-            QSize(int(base.width() * self._scale), int(base.height() * self._scale))
+            QSize(
+                int(self._base_size.width() * self._scale),
+                int(self._base_size.height() * self._scale),
+            )
         )
-        # 面板锚定依赖窗口尺寸，尺寸变化后通知一次
+        # 面板锚定依赖窗口尺寸,尺寸变化后通知一次
         self.pos_changed.emit(self.pos())
 
     def show_at_default_position(self) -> None:
