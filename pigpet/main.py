@@ -15,8 +15,9 @@ from ._qt_bootstrap import ensure_qt
 def _run_selftest(app, pet_app) -> None:
     """P3 自动化验证：
     1. 窗口可见、初始 IDLE；
-    2. 点击（按下即松）→ HAPPY，动画加载，2500ms 自动回 IDLE；
-    3. 拖动（按下 + 移动超阈值）→ DRAG，松手 → IDLE。
+    2. 单击（按下即松）→ 无动作（确认窗超时判定，不发 HAPPY）；
+    3. 双击 → HAPPY，动画加载，2500ms 自动回 IDLE；
+    4. 拖动（按下 + 移动超阈值）→ DRAG 素材，窗口尺寸恒定，松手 → IDLE。
     随后退出。
     """
     from PySide6.QtCore import QPoint, QTimer

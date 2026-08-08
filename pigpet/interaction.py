@@ -43,6 +43,7 @@ class InteractionController(QObject):
         self._timer.setInterval(POLL_MS)
         self._timer.timeout.connect(self._poll_cursor)
         self._pending_click = False            # 双击确认窗内等待第二次点击
+        self._click_resolved = False           # 本次手势是否已在按住期间按单击处理（超时），松手不再重开确认窗
         self._click_pos = QPoint()             # 第一次点击位置（供信号使用）
         self._click_timer = QTimer(self)
         self._click_timer.setSingleShot(True)
@@ -55,6 +56,7 @@ class InteractionController(QObject):
         """window_pos 是窗口内的本地坐标（抓取点）。"""
         self._pressed = True
         self._dragging = False
+        self._click_resolved = False  # 新手势开始，重置按住超时标记
         self._press_global = global_pos
         self._offset = window_pos  # 抓取点：窗口左上角应保持 光标−offset 与光标对齐
 
@@ -88,6 +90,9 @@ class InteractionController(QObject):
                 self._click_timer.stop()
                 self.double_clicked.emit(global_pos)
                 self.state_requested.emit("HAPPY")
+            elif self._click_resolved:
+                # 按住期间已超时按单击处理：松手仅清标记，不再重开确认窗
+                self._click_resolved = False
             else:
                 # 第一次点击：进入确认窗，等待第二次；超时即单击（无动作）
                 self._pending_click = True
@@ -97,6 +102,7 @@ class InteractionController(QObject):
     def _on_click_timeout(self) -> None:
         """双击确认窗超时 = 单击：无动作，仅发扩展信号。"""
         self._pending_click = False
+        self._click_resolved = True  # 按住期间超时：本次手势已按单击处理
         self.pet_clicked.emit(self._click_pos)
 
     def _poll_cursor(self) -> None:

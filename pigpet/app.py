@@ -44,7 +44,7 @@ class PetApp(QObject):
         self.settings = Settings.load(self.config_path)
 
         # ---- 素材：状态→素材映射（V1：IDLE/HAPPY 有专有素材，DRAG 回退默认） ----
-        # 被拎起素材替换点：把正式素材命名为 drag.gif 放进 assets/ 即可自动启用，
+        # 被拎起素材替换点：把正式素材命名为 drag.png 放进 assets/ 即可自动启用，
         # 无需改代码；没有时回退默认素材 + 变暗指示（P4）。
         self.assets = Assets()
         drag_asset = "drag.png" if (DEFAULT_ASSET_DIR / "drag.png").is_file() else None
