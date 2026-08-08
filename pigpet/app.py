@@ -47,7 +47,7 @@ class PetApp(QObject):
         # 被拎起素材替换点：把正式素材命名为 drag.gif 放进 assets/ 即可自动启用，
         # 无需改代码；没有时回退默认素材 + 变暗指示（P4）。
         self.assets = Assets()
-        drag_asset = "drag.gif" if (DEFAULT_ASSET_DIR / "drag.gif").is_file() else None
+        drag_asset = "drag.png" if (DEFAULT_ASSET_DIR / "drag.png").is_file() else None
         state_assets = self.assets.state_map(
             {"IDLE": "idle.png", "HAPPY": "happy.gif", "DRAG": drag_asset}
         )
@@ -90,6 +90,8 @@ class PetApp(QObject):
 
         # ---- 窗口 ----
         self.window = PetWindow(self.player)
+        # 有专门 drag 素材就不用变暗兜底;没有则回退 idle+变暗
+        self.window.set_drag_dim(drag_asset is None)
         # 窗口尺寸 = 素材尺寸 × 缩放（默认 512×512 → 256×256）
         self.window.set_scale(self.settings.pet_scale)
         self.window.set_always_on_top(self.settings.always_on_top)
