@@ -25,6 +25,7 @@ def _run_selftest(app, pet_app) -> None:
 
     it = pet_app.interaction
     monitor_rows: list[str] = []
+    checks: dict[str, bool] = {}  # single_ok / drag_ok 等逐段断言
     print("[selftest] window visible:", pet_app.window.isVisible())
     # 默认缩放 0.5：素材 512 → 窗口应 256×256
     win_size = pet_app.window.size()
@@ -32,11 +33,26 @@ def _run_selftest(app, pet_app) -> None:
     print(f"[selftest] window size: {win_size.width()}x{win_size.height()} (expect 256x256) -> {'OK' if size_ok else 'FAIL'}")
     print("[selftest] initial state:", pet_app.fsm.current)
 
-    def step_click() -> None:
+    def step_single_click() -> None:
         pos = QPoint(800, 600)
-        it.on_mouse_press(pos, QPoint(0, 0))   # 按下
-        it.on_mouse_release(pos)               # 原地松手 = 点击
-        print("[selftest] after click -> state:", pet_app.fsm.current)
+        it.on_mouse_press(pos, QPoint(0, 0))   # 单击:按下+松开
+        it.on_mouse_release(pos)
+        print("[selftest] single click sent; waiting for double-click window...")
+        QTimer.singleShot(600, step_single_check)  # > 系统双击窗(≈400ms)
+
+    def step_single_check() -> None:
+        checks["single_ok"] = pet_app.fsm.current == "IDLE"
+        print(f"[selftest] after single click -> state: {pet_app.fsm.current} (expect IDLE) -> {'OK' if checks['single_ok'] else 'FAIL'}")
+        pos = QPoint(800, 600)
+        it.on_mouse_press(pos, QPoint(0, 0))   # 双击第一步
+        it.on_mouse_release(pos)
+        QTimer.singleShot(60, step_dclick_second)  # 60ms 内第二次
+
+    def step_dclick_second() -> None:
+        pos = QPoint(800, 600)
+        it.on_mouse_press(pos, QPoint(0, 0))   # 双击第二步 → HAPPY
+        it.on_mouse_release(pos)
+        print("[selftest] after double click -> state:", pet_app.fsm.current)
         QTimer.singleShot(400, step_happy_check)
 
     def step_happy_check() -> None:
@@ -113,11 +129,11 @@ def _run_selftest(app, pet_app) -> None:
         print(f"[selftest] settings: window_form={ok_window}, rows_after={len(pet_app.panel.texts())}, win_w={win_w}, scale_ok={ok_scale}, config_exists={ok_cfg}, reloaded_ok={ok_persist}")
 
         ok_monitor = bool(monitor_rows) and not any("--" in t for t in monitor_rows)
-        ok = size_ok and ok_monitor and ok_window and ok_rows and ok_scale and ok_cfg and ok_persist
+        ok = size_ok and checks.get("single_ok", False) and ok_monitor and ok_window and ok_rows and ok_scale and ok_cfg and ok_persist
         print("[selftest]", "PASS" if ok else "FAIL")
         app.quit()
 
-    QTimer.singleShot(400, step_click)
+    QTimer.singleShot(400, step_single_click)
 
 
 def run(argv: Optional[list[str]] = None, selftest: bool = False) -> int:
