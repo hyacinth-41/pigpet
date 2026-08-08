@@ -15,9 +15,10 @@ from ._qt_bootstrap import ensure_qt
 def _run_selftest(app, pet_app) -> None:
     """P3 自动化验证：
     1. 窗口可见、初始 IDLE；
-    2. 单击（按下即松）→ 无动作（确认窗超时判定，不发 HAPPY）；
-    3. 双击 → HAPPY，动画加载，2500ms 自动回 IDLE；
-    4. 拖动（按下 + 移动超阈值）→ DRAG 素材，窗口尺寸恒定，松手 → IDLE。
+    2. 单击（按住期间轻微漂移 10px）→ 无动作（确认窗超时判定，不发 HAPPY）；
+    3. 双击（每次带 10px 漂移）→ HAPPY，动画加载，2500ms 自动回 IDLE；
+    4. 拖动（按下 + 移动 80px 超阈值）→ DRAG 素材，窗口尺寸恒定，松手 → IDLE。
+    漂移用例回归：真实双击的按住期抖动不得被误判为拖动（#854f49f 后的修复）。
     随后退出。
     """
     from PySide6.QtCore import QPoint, QTimer
@@ -36,8 +37,10 @@ def _run_selftest(app, pet_app) -> None:
 
     def step_single_click() -> None:
         pos = QPoint(800, 600)
-        it.on_mouse_press(pos, QPoint(0, 0))   # 单击:按下+松开
-        it.on_mouse_release(pos)
+        # 按住期间轻微漂移 10px(真实单击/双击普遍存在),不得被误判为拖动
+        it.on_mouse_press(pos, QPoint(0, 0))
+        it.on_mouse_move(pos + QPoint(10, 0))
+        it.on_mouse_release(pos + QPoint(10, 0))
         print("[selftest] single click sent; waiting for double-click window...")
         QTimer.singleShot(600, step_single_check)  # > 系统双击窗(≈400ms)
 
@@ -45,14 +48,16 @@ def _run_selftest(app, pet_app) -> None:
         checks["single_ok"] = pet_app.fsm.current == "IDLE"
         print(f"[selftest] after single click -> state: {pet_app.fsm.current} (expect IDLE) -> {'OK' if checks['single_ok'] else 'FAIL'}")
         pos = QPoint(800, 600)
-        it.on_mouse_press(pos, QPoint(0, 0))   # 双击第一步
-        it.on_mouse_release(pos)
+        it.on_mouse_press(pos, QPoint(0, 0))   # 双击第一步(带漂移)
+        it.on_mouse_move(pos + QPoint(10, 0))
+        it.on_mouse_release(pos + QPoint(10, 0))
         QTimer.singleShot(60, step_dclick_second)  # 60ms 内第二次
 
     def step_dclick_second() -> None:
         pos = QPoint(800, 600)
-        it.on_mouse_press(pos, QPoint(0, 0))   # 双击第二步 → HAPPY
-        it.on_mouse_release(pos)
+        it.on_mouse_press(pos, QPoint(0, 0))   # 双击第二步(带漂移) → HAPPY
+        it.on_mouse_move(pos + QPoint(10, 0))
+        it.on_mouse_release(pos + QPoint(10, 0))
         print("[selftest] after double click -> state:", pet_app.fsm.current)
         checks["dclick_ok"] = pet_app.fsm.current == "HAPPY"
         QTimer.singleShot(400, step_happy_check)
