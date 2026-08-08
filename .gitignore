@@ -1,0 +1,9 @@
+# Python
+__pycache__/
+*.pyc
+
+# 虚拟环境
+.venv/
+
+# 运行时生成
+config.json
