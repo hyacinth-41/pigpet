@@ -53,6 +53,7 @@ def _run_selftest(app, pet_app) -> None:
         it.on_mouse_press(pos, QPoint(0, 0))   # 双击第二步 → HAPPY
         it.on_mouse_release(pos)
         print("[selftest] after double click -> state:", pet_app.fsm.current)
+        checks["dclick_ok"] = pet_app.fsm.current == "HAPPY"
         QTimer.singleShot(400, step_happy_check)
 
     def step_happy_check() -> None:
@@ -61,28 +62,33 @@ def _run_selftest(app, pet_app) -> None:
 
     def step_drag() -> None:
         print("[selftest] auto-return -> state:", pet_app.fsm.current)
-        # 抓取点本地 (100,60)，按下光标全局 (900,600)
-        # 期望窗口左上角 = 光标 − 抓取点，全程贴手
         grab = QPoint(100, 60)
         start = QPoint(900, 600)
-        moved = QPoint(980, 660)  # 位移 80px，超阈值
+        moved = QPoint(980, 660)  # 位移 80px,超阈值
         it.on_mouse_press(start, grab)
         offset_ok = it._offset == grab  # 偏移必须是本地抓取点
         it.on_mouse_move(moved)   # 触发 DRAG + 跟随
         during = pet_app.fsm.current
         window_drag_state = pet_app.window.current_state  # DRAG 视觉指示
+        pix = pet_app.player.current_pixmap()
+        drag_asset_ok = not pix.isNull() and pix.width() == 1024  # 已是 drag.png
+        win_size_drag = pet_app.window.size()
+        drag_size_ok = win_size_drag.width() == 256 and win_size_drag.height() == 256  # 不被 1024 撑大
         it.on_mouse_release(moved)
         after = pet_app.fsm.current
-        # 释放补帧：期望窗口左上角 = moved − grab = (880, 600)
-        ok_drag = (
+        checks["drag_ok"] = (
             during == "DRAG"
             and window_drag_state == "DRAG"
             and after == "IDLE"
             and offset_ok
+            and drag_asset_ok
+            and drag_size_ok
         )
         print(
             f"[selftest] drag: during={during}, window_state={window_drag_state}, "
-            f"after={after}, offset_is_grab={offset_ok} -> {'OK' if ok_drag else 'FAIL'}"
+            f"after={after}, offset_is_grab={offset_ok}, asset={pix.width()}px, "
+            f"win_size={win_size_drag.width()}x{win_size_drag.height()} "
+            f"-> {'OK' if checks['drag_ok'] else 'FAIL'}"
         )
         QTimer.singleShot(300, step_monitor)
 
@@ -129,7 +135,18 @@ def _run_selftest(app, pet_app) -> None:
         print(f"[selftest] settings: window_form={ok_window}, rows_after={len(pet_app.panel.texts())}, win_w={win_w}, scale_ok={ok_scale}, config_exists={ok_cfg}, reloaded_ok={ok_persist}")
 
         ok_monitor = bool(monitor_rows) and not any("--" in t for t in monitor_rows)
-        ok = size_ok and checks.get("single_ok", False) and ok_monitor and ok_window and ok_rows and ok_scale and ok_cfg and ok_persist
+        ok = (
+            size_ok
+            and checks.get("single_ok", False)
+            and checks.get("dclick_ok", False)
+            and checks.get("drag_ok", False)
+            and ok_monitor
+            and ok_window
+            and ok_rows
+            and ok_scale
+            and ok_cfg
+            and ok_persist
+        )
         print("[selftest]", "PASS" if ok else "FAIL")
         app.quit()
 
