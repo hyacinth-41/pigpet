@@ -27,6 +27,7 @@ class PetWindow(QWidget):
     pos_changed = Signal(QPoint)      # 窗口位置变化（P5 面板跟随用）
     settings_requested = Signal()     # 右键菜单“打开设置”
     exit_requested = Signal()         # 右键菜单“退出”
+    pat_requested = Signal()          # 右键菜单「拍一拍」→ 重播 happy 动画
 
     def __init__(self, player: AnimationPlayer, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
@@ -86,6 +87,7 @@ class PetWindow(QWidget):
 
     def _build_context_menu(self) -> None:
         self._menu = QMenu(self)
+        self._menu.addAction("拍一拍").triggered.connect(self.pat_requested.emit)
         self._menu.addAction("打开设置").triggered.connect(self.settings_requested.emit)
         self._menu.addSeparator()
         self._menu.addAction("退出").triggered.connect(self.exit_requested.emit)
