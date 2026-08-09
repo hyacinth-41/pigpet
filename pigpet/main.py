@@ -17,7 +17,8 @@ def _run_selftest(app, pet_app) -> None:
     1. 窗口可见、初始 IDLE；
     2. 单击（按住期间轻微漂移 10px）→ 无动作（状态保持 IDLE）；
     3. HAPPY 动画路径：触发右键菜单「拍一拍」动作 → pat_requested → force HAPPY
-       → happy.gif 加载，2500ms 自动回 IDLE；HAPPY 中重拍仍为 HAPPY；
+       → happy.gif 经 QMovie 多帧加载（非静态单帧兜底），2500ms 自动回 IDLE；
+       HAPPY 中重拍仍为 HAPPY；
     4. 拖动（按下 + 移动 80px 超阈值）→ DRAG 素材，窗口尺寸恒定，松手 → IDLE。
     漂移用例回归：真实点按的按住期抖动不得被误判为拖动。
     随后退出。
@@ -61,7 +62,16 @@ def _run_selftest(app, pet_app) -> None:
 
     def step_happy_check() -> None:
         checks["happy_ok"] = checks["happy_ok"] and not pet_app.player.current_pixmap().isNull()
-        print("[selftest] in HAPPY, pixmap null:", pet_app.player.current_pixmap().isNull())
+        # 动画断言（回归）：happy.gif 须走 QMovie 后端且为多帧动画——
+        # 历史根因就是它被 StaticPlayer 按单帧静态加载、画面看似停在 idle。
+        movie = getattr(pet_app.player, "_movie", None)
+        frames_ok = movie is not None and movie.frameCount() > 1
+        checks["happy_ok"] = checks["happy_ok"] and frames_ok
+        frame_desc = f"{movie.frameCount()} 帧" if frames_ok else "非动画"
+        print(
+            f"[selftest] in HAPPY: pixmap null={pet_app.player.current_pixmap().isNull()}, "
+            f"动画={frame_desc} -> {'OK' if frames_ok else 'FAIL'}"
+        )
         QTimer.singleShot(HAPPY_BACK_MS + 200, step_drag)
 
     def step_drag() -> None:
