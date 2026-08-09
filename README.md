@@ -74,4 +74,4 @@ Anaconda 的 `python313.dll` 在进程启动时**抢先加载**了 `C:\ProgramDa
 ## 验证方式
 
 运行 `python -m pigpet` 人工验收；另提供 `--selftest` 自动化检查（跑完自动退出，
-覆盖：窗口可见、点击→HAPPY→自动回、拖动→DRAG→回 IDLE、监控数值、设置生效与持久化）。
+覆盖：窗口可见、单击无动作、HAPPY 动画→自动回、拖动→DRAG→回 IDLE、监控数值、设置生效与持久化）。
