@@ -16,8 +16,8 @@ def _run_selftest(app, pet_app) -> None:
     """P3 自动化验证：
     1. 窗口可见、初始 IDLE；
     2. 单击（按住期间轻微漂移 10px）→ 无动作（状态保持 IDLE）；
-    3. HAPPY 动画路径：直接请求 HAPPY（与右键「拍一拍」按钮走同一 FSM 请求）
-       → happy.gif 加载，2500ms 自动回 IDLE；
+    3. HAPPY 动画路径：触发右键菜单「拍一拍」动作 → pat_requested → force HAPPY
+       → happy.gif 加载，2500ms 自动回 IDLE；HAPPY 中重拍仍为 HAPPY；
     4. 拖动（按下 + 移动 80px 超阈值）→ DRAG 素材，窗口尺寸恒定，松手 → IDLE。
     漂移用例回归：真实点按的按住期抖动不得被误判为拖动。
     随后退出。
@@ -48,10 +48,15 @@ def _run_selftest(app, pet_app) -> None:
     def step_single_check() -> None:
         checks["single_ok"] = pet_app.fsm.current == "IDLE"  # 单击无动作
         print(f"[selftest] after single click -> state: {pet_app.fsm.current} (expect IDLE) -> {'OK' if checks['single_ok'] else 'FAIL'}")
-        # HAPPY 由右键「拍一拍」触发;这里直接请求同一 FSM 状态,验证 happy.gif 路径
-        pet_app.fsm.request("HAPPY")
+        # HAPPY 走真实路径：右键菜单「拍一拍」动作 → pat_requested → force HAPPY
+        pat = next(a for a in pet_app.window._menu.actions() if a.text() == "拍一拍")
+        pat.trigger()
         checks["happy_ok"] = pet_app.fsm.current == "HAPPY"
-        print(f"[selftest] request HAPPY -> state: {pet_app.fsm.current} (expect HAPPY) -> {'OK' if checks['happy_ok'] else 'FAIL'}")
+        print(f"[selftest] menu 拍一拍 -> state: {pet_app.fsm.current} (expect HAPPY) -> {'OK' if checks['happy_ok'] else 'FAIL'}")
+        # 重播断言：HAPPY 中再触发一次仍为 HAPPY（force 幂等可用）
+        pat.trigger()
+        checks["happy_ok"] = checks["happy_ok"] and pet_app.fsm.current == "HAPPY"
+        print(f"[selftest] replay 拍一拍 -> state: {pet_app.fsm.current} (expect HAPPY) -> {'OK' if checks['happy_ok'] else 'FAIL'}")
         QTimer.singleShot(400, step_happy_check)
 
     def step_happy_check() -> None:
