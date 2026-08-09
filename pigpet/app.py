@@ -107,6 +107,7 @@ class PetApp(QObject):
         self.interaction.state_requested.connect(self.fsm.request)
         self.interaction.move_requested.connect(self.window.move)
         self.interaction.pet_clicked.connect(self._on_pet_clicked)
+        self.window.pat_requested.connect(self._on_pat_requested)
         self.window.exit_requested.connect(self._quit)
         self.window.pos_changed.connect(self._anchor_panel)
         self.monitor.values_updated.connect(self.panel.update_values)
@@ -133,6 +134,11 @@ class PetApp(QObject):
     def _on_pet_clicked(self, _pos) -> None:
         """点击行为扩展点。V1 已通过 state_requested("HAPPY") 触发互动；
         未来可在此加入新行为（喂食、说话气泡等）。"""
+
+    def _on_pat_requested(self) -> None:
+        """「拍一拍」：重播 happy 动画（即使已在播放）。"""
+        if self.fsm.current != "DRAG":  # 拖动中被拍一拍不打断拖动
+            self.fsm.force("HAPPY")
 
     def _anchor_panel(self, pos) -> None:
         self.panel.anchor_to(pos, self.window.size())
